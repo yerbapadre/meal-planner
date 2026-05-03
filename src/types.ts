@@ -3,7 +3,10 @@ export interface Ingredient {
   name: string
   quantity: number
   unit: string
-  estimatedCost: number
+  estimatedCost: number        // proportional cost used for per-serving estimates
+  krogerProductId?: string
+  krogerProductDescription?: string
+  krogerProductPrice?: number  // full unit price — used for grocery list totals
 }
 
 export interface Meal {
@@ -30,6 +33,9 @@ export interface GroceryItem {
   estimatedCost: number
   checked: boolean
   mealNames: string[]
+  krogerProductId?: string
+  krogerProductDescription?: string
+  krogerProductPrice?: number
 }
 
 export type Day = 'Mon' | 'Tue' | 'Wed' | 'Thu' | 'Fri' | 'Sat' | 'Sun'

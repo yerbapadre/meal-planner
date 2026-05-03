@@ -49,9 +49,18 @@ export function useMeals() {
     setMeals(prev => {
       const next = resolve(updater, prev)
       localStorage.setItem('meals', JSON.stringify(next))
-      supabase.from('meals').upsert(next.map(mealToRow)).then(({ error }) => {
-        if (error) console.error('Failed to sync meals:', error)
-      })
+      const nextIds = new Set(next.map(m => m.id))
+      const deletedIds = prev.filter(m => !nextIds.has(m.id)).map(m => m.id)
+      if (next.length > 0) {
+        supabase.from('meals').upsert(next.map(mealToRow)).then(({ error }) => {
+          if (error) console.error('Failed to sync meals:', error)
+        })
+      }
+      if (deletedIds.length > 0) {
+        supabase.from('meals').delete().in('id', deletedIds).then(({ error }) => {
+          if (error) console.error('Failed to delete meals:', error)
+        })
+      }
       return next
     })
   }

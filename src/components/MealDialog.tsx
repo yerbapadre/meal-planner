@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import { Plus, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import type { Meal, Ingredient } from '@/types'
 import { searchKroger, type KrogerProduct } from '@/lib/kroger'
+import { suggestTags } from '@/lib/tags'
 
 const UNITS = ['g', 'kg', 'oz', 'lb', 'cup', 'tbsp', 'tsp', 'ml', 'L', 'piece', 'slice', 'can', 'box', 'bunch', 'clove']
 
@@ -30,22 +31,33 @@ function emptyMeal(): Meal {
 interface Props {
   open: boolean
   meal: Meal | null
+  existingTags?: string[]
   onSave: (meal: Meal) => void
+  onDelete?: () => void
   onClose: () => void
 }
 
-export function MealDialog({ open, meal, onSave, onClose }: Props) {
+export function MealDialog({ open, meal, existingTags, onSave, onDelete, onClose }: Props) {
   const [form, setForm] = useState<Meal>(emptyMeal)
   const [tagInput, setTagInput] = useState('')
+  const [showTagSuggestions, setShowTagSuggestions] = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState(false)
   const [suggestions, setSuggestions] = useState<Record<string, KrogerProduct[]>>({})
   const [activeSuggestion, setActiveSuggestion] = useState<string | null>(null)
   const searchTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({})
+
+  const tagSuggestions = useMemo(
+    () => suggestTags(tagInput, existingTags ?? [], form.tags),
+    [tagInput, existingTags, form.tags]
+  )
 
   useEffect(() => {
     setForm(meal ? { ...meal, ingredients: meal.ingredients.map(i => ({ ...i })) } : emptyMeal())
     setTagInput('')
     setSuggestions({})
     setActiveSuggestion(null)
+    setShowTagSuggestions(false)
+    setConfirmDelete(false)
   }, [meal, open])
 
   function handleIngredientNameChange(id: string, value: string) {
@@ -71,7 +83,14 @@ export function MealDialog({ open, meal, onSave, onClose }: Props) {
       ...prev,
       ingredients: prev.ingredients.map(i =>
         i.id === id
-          ? { ...i, name: product.description, estimatedCost: product.price ?? i.estimatedCost }
+          ? {
+              ...i,
+              krogerProductId: product.productId,
+              krogerProductDescription: product.description,
+              krogerProductPrice: product.price ?? undefined,
+              // estimatedCost defaults to full price; user can lower it for partial use
+              estimatedCost: product.price ?? i.estimatedCost,
+            }
           : i
       ),
     }))
@@ -118,11 +137,16 @@ export function MealDialog({ open, meal, onSave, onClose }: Props) {
     onSave({ ...form, name: form.name.trim() })
   }
 
+  function handleDelete() {
+    onDelete?.()
+    onClose()
+  }
+
   const totalCost = form.ingredients.reduce((sum, i) => sum + (Number(i.estimatedCost) || 0), 0)
   const costPerServing = form.servings > 0 ? totalCost / form.servings : 0
 
   return (
-    <Dialog open={open} onOpenChange={v => !v && onClose()}>
+    <Dialog open={open} onOpenChange={v => !v && onClose()} disablePointerDismissal>
       <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{meal ? 'Edit Meal' : 'Add Meal'}</DialogTitle>
@@ -183,14 +207,14 @@ export function MealDialog({ open, meal, onSave, onClose }: Props) {
                       className="text-sm"
                     />
                     {activeSuggestion === ing.id && suggestions[ing.id]?.length > 0 && (
-                      <ul className="absolute z-50 top-full left-0 right-0 mt-1 bg-popover border rounded-md shadow-md max-h-48 overflow-y-auto">
+                      <ul className="absolute z-50 top-full left-0 mt-1 bg-popover border rounded-md shadow-md max-h-48 overflow-y-auto min-w-full w-max max-w-sm">
                         {suggestions[ing.id].map(product => (
                           <li
                             key={product.productId}
                             className="flex items-center justify-between px-3 py-2 text-sm cursor-pointer hover:bg-accent"
                             onMouseDown={() => selectSuggestion(ing.id, product)}
                           >
-                            <span className="truncate mr-2">{product.description}</span>
+                            <span className="mr-4">{product.description}</span>
                             <span className="text-muted-foreground shrink-0">
                               {product.price != null ? `$${product.price.toFixed(2)}` : '—'}
                               {product.unit ? ` / ${product.unit}` : ''}
@@ -247,23 +271,44 @@ export function MealDialog({ open, meal, onSave, onClose }: Props) {
 
           <div>
             <Label>Tags <span className="text-muted-foreground font-normal">optional — press Enter to add</span></Label>
-            <div className="mt-1 flex flex-wrap gap-1.5 p-2 border rounded-md min-h-[38px]">
-              {form.tags.map(tag => (
-                <span
-                  key={tag}
-                  className="inline-flex items-center gap-1 bg-secondary text-secondary-foreground text-xs px-2 py-0.5 rounded-full cursor-pointer hover:bg-destructive/20"
-                  onClick={() => removeTag(tag)}
-                >
-                  {tag} ×
-                </span>
-              ))}
-              <input
-                className="flex-1 min-w-[100px] bg-transparent text-sm outline-none"
-                placeholder="e.g. quick, vegetarian…"
-                value={tagInput}
-                onChange={e => setTagInput(e.target.value)}
-                onKeyDown={addTag}
-              />
+            <div className="relative mt-1">
+              <div className="flex flex-wrap gap-1.5 p-2 border rounded-md min-h-[38px]">
+                {form.tags.map(tag => (
+                  <span
+                    key={tag}
+                    className="inline-flex items-center gap-1 bg-secondary text-secondary-foreground text-xs px-2 py-0.5 rounded-full cursor-pointer hover:bg-destructive/20"
+                    onClick={() => removeTag(tag)}
+                  >
+                    {tag} ×
+                  </span>
+                ))}
+                <input
+                  className="flex-1 min-w-[100px] bg-transparent text-sm outline-none"
+                  placeholder="e.g. quick, vegetarian…"
+                  value={tagInput}
+                  onChange={e => { setTagInput(e.target.value); setShowTagSuggestions(true) }}
+                  onKeyDown={addTag}
+                  onFocus={() => setShowTagSuggestions(true)}
+                  onBlur={() => setTimeout(() => setShowTagSuggestions(false), 150)}
+                />
+              </div>
+              {showTagSuggestions && tagSuggestions.length > 0 && (
+                <ul className="absolute z-50 top-full left-0 mt-1 bg-popover border rounded-md shadow-md overflow-hidden min-w-[160px]">
+                  {tagSuggestions.map(t => (
+                    <li
+                      key={t}
+                      className="px-3 py-1.5 text-sm cursor-pointer hover:bg-accent"
+                      onMouseDown={() => {
+                        setField('tags', [...form.tags, t])
+                        setTagInput('')
+                        setShowTagSuggestions(false)
+                      }}
+                    >
+                      {t}
+                    </li>
+                  ))}
+                </ul>
+              )}
             </div>
           </div>
 
@@ -279,7 +324,26 @@ export function MealDialog({ open, meal, onSave, onClose }: Props) {
           </div>
         </div>
 
-        <DialogFooter>
+        <DialogFooter className="flex-row items-center gap-2">
+          {meal && onDelete && (
+            <div className="flex-1">
+              {confirmDelete ? (
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-muted-foreground">Delete this meal?</span>
+                  <Button size="sm" variant="destructive" onClick={handleDelete}>Delete</Button>
+                  <Button size="sm" variant="outline" onClick={() => setConfirmDelete(false)}>Cancel</Button>
+                </div>
+              ) : (
+                <Button
+                  variant="ghost"
+                  className="text-destructive hover:text-destructive hover:bg-destructive/10 -ml-2"
+                  onClick={() => setConfirmDelete(true)}
+                >
+                  Delete meal
+                </Button>
+              )}
+            </div>
+          )}
           <Button variant="outline" onClick={onClose}>Cancel</Button>
           <Button onClick={handleSave} disabled={!form.name.trim()}>
             {meal ? 'Save changes' : 'Add meal'}
