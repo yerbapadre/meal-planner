@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none">
+  <!-- Fork -->
+  <path d="M14 6v8c0 2.2 1.8 4 4 4v18a2 2 0 0 0 4 0V18c2.2 0 4-1.8 4-4V6h-3v7h-2V6h-3v7h-2V6h-2z" fill="#2d7a3a"/>
+  <!-- Knife -->
+  <path d="M30 6c0 0 4 4 4 10v2h-4v18a2 2 0 0 1-4 0V6h4z" fill="#2d7a3a"/>
+</svg>
