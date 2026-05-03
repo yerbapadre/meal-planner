@@ -12,7 +12,7 @@ export function Layout() {
     <div className="min-h-screen flex flex-col">
       <header className="border-b sticky top-0 bg-background z-10">
         <div className="max-w-5xl mx-auto px-4 h-14 flex items-center justify-between">
-          <span className="font-semibold text-base">Meal Planner</span>
+          <span className="font-bold text-base bg-gradient-to-r from-primary to-orange-400 bg-clip-text text-transparent">Meal Planner</span>
           <nav className="flex gap-1">
             {nav.map(({ to, label, icon: Icon }) => (
               <NavLink

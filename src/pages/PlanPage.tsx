@@ -327,13 +327,19 @@ export function PlanPage() {
                   {dayNum}
                 </span>
                 <div className="flex flex-col gap-0.5 w-full overflow-hidden">
-                  {dayMeals.slice(0, 2).map(p => {
+                  {dayMeals.slice(0, 2).map((p, pi) => {
                     const meal = meals.find(m => m.id === p.mealId)
                     if (!meal) return null
+                    const pillColors = [
+                      'bg-orange-100 text-orange-700',
+                      'bg-teal-100 text-teal-700',
+                      'bg-violet-100 text-violet-700',
+                      'bg-amber-100 text-amber-700',
+                    ]
                     return (
                       <span
                         key={p.id}
-                        className="text-[10px] leading-tight bg-primary/10 text-primary rounded px-1 truncate block"
+                        className={`text-[10px] leading-tight rounded px-1 truncate block ${pillColors[pi % pillColors.length]}`}
                       >
                         {meal.name}
                       </span>

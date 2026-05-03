@@ -85,7 +85,7 @@ export function MealDialog({ open, meal, onSave, onClose }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={v => !v && onClose()}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{meal ? 'Edit Meal' : 'Add Meal'}</DialogTitle>
         </DialogHeader>

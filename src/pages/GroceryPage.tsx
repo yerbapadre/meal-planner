@@ -34,7 +34,7 @@ export function GroceryPage() {
   if (plan.length === 0) {
     return (
       <div className="p-6 max-w-2xl mx-auto text-center py-16 text-muted-foreground">
-        <ShoppingCart className="w-10 h-10 mx-auto mb-3 opacity-30" />
+        <ShoppingCart className="w-10 h-10 mx-auto mb-3 text-primary/40" />
         <p>Plan your meals for the week first, then come here to generate a grocery list.</p>
       </div>
     )
@@ -95,7 +95,7 @@ function GroceryRow({ item, onToggle }: { item: GroceryItem; onToggle: () => voi
     >
       <CardContent className="p-3 flex items-center justify-between gap-3">
         <div className="flex items-center gap-3">
-          <div className={`w-4 h-4 rounded border-2 flex items-center justify-center shrink-0 transition-colors ${item.checked ? 'bg-primary border-primary' : 'border-muted-foreground/40'}`}>
+          <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors ${item.checked ? 'bg-primary border-primary' : 'border-muted-foreground/40'}`}>
             {item.checked && <span className="text-primary-foreground text-[10px] font-bold">✓</span>}
           </div>
           <div>

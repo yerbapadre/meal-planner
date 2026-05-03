@@ -47,13 +47,14 @@ export function MealsPage() {
 
       {meals.length === 0 ? (
         <div className="text-center py-16 text-muted-foreground">
+          <p className="text-4xl mb-2">🍳</p>
           <p className="mb-4">No meals yet.</p>
           <Button variant="outline" onClick={() => setOpen(true)}>Add your first meal</Button>
         </div>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2">
           {meals.map(meal => (
-            <Card key={meal.id}>
+            <Card key={meal.id} className="hover:shadow-md hover:shadow-primary/10 transition-shadow">
               <CardHeader className="pb-2">
                 <div className="flex items-start justify-between gap-2">
                   <CardTitle className="text-base">{meal.name}</CardTitle>
@@ -85,9 +86,18 @@ export function MealsPage() {
                 </p>
                 {meal.tags.length > 0 && (
                   <div className="flex flex-wrap gap-1">
-                    {meal.tags.map(tag => (
-                      <Badge key={tag} variant="secondary" className="text-xs">{tag}</Badge>
-                    ))}
+                    {meal.tags.map((tag, i) => {
+                      const colors = [
+                        'bg-orange-100 text-orange-700 border-orange-200',
+                        'bg-teal-100 text-teal-700 border-teal-200',
+                        'bg-violet-100 text-violet-700 border-violet-200',
+                        'bg-amber-100 text-amber-700 border-amber-200',
+                        'bg-sky-100 text-sky-700 border-sky-200',
+                      ]
+                      return (
+                        <Badge key={tag} variant="outline" className={`text-xs ${colors[i % colors.length]}`}>{tag}</Badge>
+                      )
+                    })}
                   </div>
                 )}
               </CardContent>
