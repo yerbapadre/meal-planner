@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react'
+'use client'
+import { useState, useEffect, useRef } from 'react'
 import { Plus, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
@@ -6,6 +7,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import type { Meal, Ingredient } from '@/types'
+import { searchKroger, type KrogerProduct } from '@/lib/kroger'
 
 const UNITS = ['g', 'kg', 'oz', 'lb', 'cup', 'tbsp', 'tsp', 'ml', 'L', 'piece', 'slice', 'can', 'box', 'bunch', 'clove']
 
@@ -35,11 +37,47 @@ interface Props {
 export function MealDialog({ open, meal, onSave, onClose }: Props) {
   const [form, setForm] = useState<Meal>(emptyMeal)
   const [tagInput, setTagInput] = useState('')
+  const [suggestions, setSuggestions] = useState<Record<string, KrogerProduct[]>>({})
+  const [activeSuggestion, setActiveSuggestion] = useState<string | null>(null)
+  const searchTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({})
 
   useEffect(() => {
     setForm(meal ? { ...meal, ingredients: meal.ingredients.map(i => ({ ...i })) } : emptyMeal())
     setTagInput('')
+    setSuggestions({})
+    setActiveSuggestion(null)
   }, [meal, open])
+
+  function handleIngredientNameChange(id: string, value: string) {
+    updateIngredient(id, 'name', value)
+    clearTimeout(searchTimers.current[id])
+    if (value.length < 2) {
+      setSuggestions(prev => ({ ...prev, [id]: [] }))
+      return
+    }
+    searchTimers.current[id] = setTimeout(async () => {
+      try {
+        const results = await searchKroger(value)
+        setSuggestions(prev => ({ ...prev, [id]: results }))
+        setActiveSuggestion(id)
+      } catch {
+        // silently fail — user can still type manually
+      }
+    }, 400)
+  }
+
+  function selectSuggestion(id: string, product: KrogerProduct) {
+    setForm(prev => ({
+      ...prev,
+      ingredients: prev.ingredients.map(i =>
+        i.id === id
+          ? { ...i, name: product.description, estimatedCost: product.price ?? i.estimatedCost }
+          : i
+      ),
+    }))
+    setSuggestions(prev => ({ ...prev, [id]: [] }))
+    setActiveSuggestion(null)
+  }
 
   function setField<K extends keyof Meal>(key: K, value: Meal[K]) {
     setForm(prev => ({ ...prev, [key]: value }))
@@ -85,7 +123,7 @@ export function MealDialog({ open, meal, onSave, onClose }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={v => !v && onClose()}>
-      <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{meal ? 'Edit Meal' : 'Add Meal'}</DialogTitle>
         </DialogHeader>
@@ -134,13 +172,34 @@ export function MealDialog({ open, meal, onSave, onClose }: Props) {
             </div>
             <div className="flex flex-col gap-2">
               {form.ingredients.map(ing => (
-                <div key={ing.id} className="grid grid-cols-[1fr_80px_80px_60px_28px] gap-2 items-center">
-                  <Input
-                    placeholder="Ingredient name"
-                    value={ing.name}
-                    onChange={e => updateIngredient(ing.id, 'name', e.target.value)}
-                    className="text-sm"
-                  />
+                <div key={ing.id} className="grid grid-cols-[1fr_100px_100px_80px_28px] gap-2 items-center">
+                  <div className="relative">
+                    <Input
+                      placeholder="Ingredient name"
+                      value={ing.name}
+                      onChange={e => handleIngredientNameChange(ing.id, e.target.value)}
+                      onFocus={() => suggestions[ing.id]?.length && setActiveSuggestion(ing.id)}
+                      onBlur={() => setTimeout(() => setActiveSuggestion(null), 150)}
+                      className="text-sm"
+                    />
+                    {activeSuggestion === ing.id && suggestions[ing.id]?.length > 0 && (
+                      <ul className="absolute z-50 top-full left-0 right-0 mt-1 bg-popover border rounded-md shadow-md max-h-48 overflow-y-auto">
+                        {suggestions[ing.id].map(product => (
+                          <li
+                            key={product.productId}
+                            className="flex items-center justify-between px-3 py-2 text-sm cursor-pointer hover:bg-accent"
+                            onMouseDown={() => selectSuggestion(ing.id, product)}
+                          >
+                            <span className="truncate mr-2">{product.description}</span>
+                            <span className="text-muted-foreground shrink-0">
+                              {product.price != null ? `$${product.price.toFixed(2)}` : '—'}
+                              {product.unit ? ` / ${product.unit}` : ''}
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
                   <Input
                     type="number"
                     min={0}
