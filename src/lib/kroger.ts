@@ -6,7 +6,9 @@ export interface KrogerProduct {
   imageUrl: string | null
 }
 
-export async function searchKroger(term: string, locationId?: string): Promise<KrogerProduct[]> {
+const DEFAULT_LOCATION_ID = '70600119' // Smith's Marketplace - Lehi, UT
+
+export async function searchKroger(term: string, locationId = DEFAULT_LOCATION_ID): Promise<KrogerProduct[]> {
   if (!term.trim()) return []
 
   const params = new URLSearchParams({ term })
