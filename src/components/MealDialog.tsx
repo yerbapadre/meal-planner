@@ -175,16 +175,29 @@ export function MealDialog({ open, meal, existingTags, onSave, onDelete, onClose
             </div>
           </div>
 
-          <div>
-            <Label>Prep time (minutes) <span className="text-muted-foreground font-normal">optional</span></Label>
-            <Input
-              type="number"
-              min={0}
-              placeholder="30"
-              value={form.prepTimeMinutes ?? ''}
-              onChange={e => setField('prepTimeMinutes', e.target.value ? parseInt(e.target.value) : undefined)}
-              className="mt-1 w-32"
-            />
+          <div className="flex gap-4">
+            <div>
+              <Label>Prep time (minutes) <span className="text-muted-foreground font-normal">optional</span></Label>
+              <Input
+                type="number"
+                min={0}
+                placeholder="30"
+                value={form.prepTimeMinutes ?? ''}
+                onChange={e => setField('prepTimeMinutes', e.target.value ? parseInt(e.target.value) : undefined)}
+                className="mt-1 w-32"
+              />
+            </div>
+            <div>
+              <Label>Calories per serving <span className="text-muted-foreground font-normal">optional</span></Label>
+              <Input
+                type="number"
+                min={0}
+                placeholder="450"
+                value={form.caloriesPerServing ?? ''}
+                onChange={e => setField('caloriesPerServing', e.target.value ? parseInt(e.target.value) : undefined)}
+                className="mt-1 w-32"
+              />
+            </div>
           </div>
 
           <div>

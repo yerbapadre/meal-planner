@@ -14,6 +14,7 @@ export interface Meal {
   name: string
   servings: number
   prepTimeMinutes?: number
+  caloriesPerServing?: number
   ingredients: Ingredient[]
   notes?: string
   tags: string[]

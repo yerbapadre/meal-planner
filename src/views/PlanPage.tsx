@@ -174,19 +174,20 @@ export function PlanPage() {
   function renderMealCard(p: PlannedMeal) {
     const meal = meals.find(m => m.id === p.mealId)
     if (!meal) return null
+    const totalCals = meal.caloriesPerServing ? Math.round(meal.caloriesPerServing * p.servings) : null
     return (
-      <Card key={p.id} className="group relative">
-        <CardContent className="p-2">
-          <p className="text-xs font-medium leading-tight pr-4">{meal.name}</p>
-          <p className="text-xs text-muted-foreground">{p.servings} serving{p.servings !== 1 ? 's' : ''}</p>
-          <button
-            onClick={() => removeFromPlan(p.id)}
-            className="absolute top-1.5 right-1.5 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive"
-          >
-            <X className="w-3 h-3" />
-          </button>
-        </CardContent>
-      </Card>
+      <div key={p.id} className="group relative bg-muted/70 rounded px-1.5 py-1">
+        <p className="text-[11px] font-medium leading-tight pr-3 truncate">{meal.name}</p>
+        {totalCals && (
+          <p className="text-[10px] text-muted-foreground">{totalCals} cal</p>
+        )}
+        <button
+          onClick={() => removeFromPlan(p.id)}
+          className="absolute top-0.5 right-0.5 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive"
+        >
+          <X className="w-2.5 h-2.5" />
+        </button>
+      </div>
     )
   }
 
@@ -227,11 +228,9 @@ export function PlanPage() {
   // --- Weekly View ---
 
   function renderWeeklyView() {
-    const weekTotal = weekDates.reduce((sum, d) => sum + getDayCost(d), 0)
-
     return (
-      <div className="flex flex-col gap-4">
-        <div className="grid gap-3 sm:grid-cols-7">
+      <div className="flex flex-col gap-3">
+        <div className="grid gap-2 sm:grid-cols-7">
           {DAYS_SHORT.map((day, i) => {
             const date = weekDates[i]
             const dayMeals = getMealsForDay(date)
@@ -239,7 +238,7 @@ export function PlanPage() {
             const isToday = date === today
 
             return (
-              <div key={day} className="flex flex-col gap-2">
+              <div key={day} className="flex flex-col gap-1.5">
                 <div className="flex items-center justify-between">
                   <span className={cn(
                     'text-xs font-medium uppercase tracking-wide',
@@ -248,7 +247,7 @@ export function PlanPage() {
                     {day}
                   </span>
                   {dayMeals.length > 0 && (
-                    <span className="text-xs text-muted-foreground">{formatCost(getDayCost(date))}</span>
+                    <span className="text-[10px] text-muted-foreground">{formatCost(getDayCost(date))}</span>
                   )}
                 </div>
 
@@ -262,7 +261,7 @@ export function PlanPage() {
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="h-7 text-xs border border-dashed w-full"
+                    className="h-6 text-xs border border-dashed w-full"
                     onClick={() => startAdding(date)}
                   >
                     <Plus className="w-3 h-3 mr-1" /> Add
@@ -272,10 +271,56 @@ export function PlanPage() {
             )
           })}
         </div>
-        {weekTotal > 0 && (
-          <p className="text-sm text-muted-foreground text-right">
-            Week total: <span className="font-medium text-foreground">{formatCost(weekTotal)}</span>
-          </p>
+
+        {/* Meal inspiration strip */}
+        {meals.length > 0 && (
+          <div className="relative mt-1 border-t pt-4">
+            <p className="text-[10px] uppercase tracking-widest text-muted-foreground/60 mb-2.5">Your meals</p>
+            <div className="flex gap-2.5 overflow-x-auto pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              {[...meals].sort((a, b) => {
+                const aPlanned = weekDates.some(d => getMealsForDay(d).some(p => p.mealId === a.id))
+                const bPlanned = weekDates.some(d => getMealsForDay(d).some(p => p.mealId === b.id))
+                return Number(aPlanned) - Number(bPlanned)
+              }).map((meal, i) => {
+                const cardColors = [
+                  'bg-orange-50 border-orange-100',
+                  'bg-teal-50 border-teal-100',
+                  'bg-violet-50 border-violet-100',
+                  'bg-amber-50 border-amber-100',
+                  'bg-sky-50 border-sky-100',
+                  'bg-rose-50 border-rose-100',
+                  'bg-emerald-50 border-emerald-100',
+                  'bg-indigo-50 border-indigo-100',
+                ]
+                const isPlanned = weekDates.some(d => getMealsForDay(d).some(p => p.mealId === meal.id))
+                const color = cardColors[i % cardColors.length]
+                return (
+                  <div
+                    key={meal.id}
+                    className={cn(
+                      'shrink-0 w-36 rounded-xl border p-3 flex flex-col gap-2 transition-opacity',
+                      color,
+                      isPlanned && 'opacity-40'
+                    )}
+                  >
+                    <p className="text-xs font-semibold leading-snug line-clamp-2">{meal.name}</p>
+                    {meal.tags.length > 0 && (
+                      <div className="flex flex-wrap gap-1">
+                        {meal.tags.slice(0, 2).map(tag => (
+                          <span key={tag} className="text-[9px] bg-white/70 rounded-full px-1.5 py-0.5 text-muted-foreground capitalize">{tag}</span>
+                        ))}
+                      </div>
+                    )}
+                    <div className="flex items-center gap-2 mt-auto text-[10px] text-muted-foreground">
+                      {meal.prepTimeMinutes && <span>{meal.prepTimeMinutes}m</span>}
+                      {meal.caloriesPerServing && <span>{meal.caloriesPerServing} cal</span>}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+            <div className="absolute right-0 top-0 bottom-2 w-10 bg-gradient-to-l from-background to-transparent pointer-events-none" />
+          </div>
         )}
       </div>
     )
@@ -402,41 +447,46 @@ export function PlanPage() {
     )
   }
 
+  function goToday() {
+    setCurrentDate(new Date())
+    setView('daily')
+    setAddingDay(null)
+    setFocusedDate(null)
+  }
+
+
   return (
     <div className="p-6 max-w-5xl mx-auto">
       {/* Header */}
-      <div className="flex flex-col gap-4 mb-6">
-        <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-semibold font-heading">Meal Plan</h1>
-          {/* View toggle */}
-          <div className="flex rounded-lg border overflow-hidden text-sm">
-            {(['daily', 'weekly', 'monthly'] as CalendarView[]).map(v => (
-              <button
-                key={v}
-                onClick={() => switchView(v)}
-                className={cn(
-                  'px-3 py-1.5 text-xs font-medium capitalize transition-colors',
-                  view === v ? 'bg-primary text-primary-foreground' : 'hover:bg-muted'
-                )}
-              >
-                {v}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Navigation bar */}
-        <div className="flex items-center gap-2">
+      <div className="flex items-center justify-between mb-6">
+        {/* Date navigation */}
+        <div className="flex items-center gap-1">
           <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => navigate(-1)}>
             <ChevronLeft className="w-4 h-4" />
           </Button>
-          <span className="text-sm font-medium text-center min-w-[220px]">{periodLabel}</span>
+          <span className="text-lg font-semibold font-heading min-w-[220px] text-center">{periodLabel}</span>
           <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => navigate(1)}>
             <ChevronRight className="w-4 h-4" />
           </Button>
-          <Button variant="outline" size="sm" className="text-xs h-8 ml-1" onClick={() => { setCurrentDate(new Date()); setAddingDay(null); setFocusedDate(null) }}>
+          <Button variant="outline" size="sm" className="text-xs h-8 ml-2" onClick={goToday}>
             Today
           </Button>
+        </div>
+
+        {/* View toggle */}
+        <div className="flex rounded-lg border overflow-hidden text-sm">
+          {(['daily', 'weekly', 'monthly'] as CalendarView[]).map(v => (
+            <button
+              key={v}
+              onClick={() => switchView(v)}
+              className={cn(
+                'px-3 py-1.5 text-xs font-medium capitalize transition-colors',
+                view === v ? 'bg-primary text-primary-foreground' : 'hover:bg-muted'
+              )}
+            >
+              {v}
+            </button>
+          ))}
         </div>
       </div>
 

@@ -1,16 +1,20 @@
 'use client'
 import { useState, useRef, useEffect } from 'react'
-import { Loader2, ChefHat, Mic, MicOff } from 'lucide-react'
+import { Loader2, ChefHat, Mic, MicOff, Link, Pencil } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { Textarea } from '@/components/ui/textarea'
+import { Input } from '@/components/ui/input'
 import type { Meal } from '@/types'
 
 interface Props {
   open: boolean
   onClose: () => void
   onParsed: (meal: Omit<Meal, 'id'>) => void
+  onManual: () => void
 }
+
+type Mode = 'describe' | 'url'
 
 type SpeechRecognitionInstance = {
   continuous: boolean
@@ -28,8 +32,10 @@ const SpeechRecognitionAPI =
     ? (window as any).SpeechRecognition ?? (window as any).webkitSpeechRecognition
     : null
 
-export function RecipeChat({ open, onClose, onParsed }: Props) {
+export function RecipeChat({ open, onClose, onParsed, onManual }: Props) {
+  const [mode, setMode] = useState<Mode>('describe')
   const [description, setDescription] = useState('')
+  const [url, setUrl] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [parsed, setParsed] = useState<Omit<Meal, 'id'> | null>(null)
@@ -47,20 +53,14 @@ export function RecipeChat({ open, onClose, onParsed }: Props) {
     recognition.continuous = true
     recognition.interimResults = true
     recognition.lang = 'en-US'
-
     baseTextRef.current = description
-
     recognition.onresult = (e: any) => {
-      const transcript = Array.from(e.results as any[])
-        .map((r: any) => r[0].transcript)
-        .join('')
+      const transcript = Array.from(e.results as any[]).map((r: any) => r[0].transcript).join('')
       setDescription((baseTextRef.current ? baseTextRef.current + ' ' : '') + transcript)
       if (parsed) setParsed(null)
     }
-
     recognition.onerror = () => stopListening()
     recognition.onend = () => setListening(false)
-
     recognitionRef.current = recognition
     recognition.start()
     setListening(true)
@@ -78,7 +78,8 @@ export function RecipeChat({ open, onClose, onParsed }: Props) {
 
   async function handleParse() {
     if (listening) stopListening()
-    if (!description.trim()) return
+    if (mode === 'describe' && !description.trim()) return
+    if (mode === 'url' && !url.trim()) return
     setLoading(true)
     setError(null)
     setParsed(null)
@@ -86,7 +87,7 @@ export function RecipeChat({ open, onClose, onParsed }: Props) {
       const res = await fetch('/api/ai/parse-recipe', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ description }),
+        body: JSON.stringify(mode === 'url' ? { url } : { description }),
       })
       const data = await res.json()
       if (!res.ok || data.error) throw new Error(data.error ?? 'Failed to parse recipe')
@@ -107,6 +108,7 @@ export function RecipeChat({ open, onClose, onParsed }: Props) {
   function reset() {
     stopListening()
     setDescription('')
+    setUrl('')
     setParsed(null)
     setError(null)
     baseTextRef.current = ''
@@ -117,47 +119,86 @@ export function RecipeChat({ open, onClose, onParsed }: Props) {
     onClose()
   }
 
+  function switchMode(m: Mode) {
+    setMode(m)
+    setParsed(null)
+    setError(null)
+  }
+
+  const tabs = [
+    { id: 'describe' as Mode, label: 'Describe', icon: <Mic className="w-3.5 h-3.5" /> },
+    { id: 'url' as Mode, label: 'From URL', icon: <Link className="w-3.5 h-3.5" /> },
+  ]
+
   return (
     <Dialog open={open} onOpenChange={v => !v && handleClose()} disablePointerDismissal>
       <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <ChefHat className="w-5 h-5" />
-            Describe a Recipe
+            Add Meal
           </DialogTitle>
         </DialogHeader>
 
         <div className="space-y-3">
-          <div className="relative">
-            <Textarea
-              placeholder="e.g. Chicken stir fry with 2 chicken breasts, 1 cup soy sauce, 2 tbsp sesame oil, 2 cups broccoli florets, 3 cloves garlic. Serves 4, takes about 20 minutes."
-              value={description}
-              onChange={e => { setDescription(e.target.value); if (parsed) setParsed(null) }}
-              rows={6}
-              className="resize-none pr-10"
-              disabled={loading}
-            />
-            {SpeechRecognitionAPI && (
+          <div className="flex gap-1 p-1 bg-muted rounded-lg">
+            {tabs.map(tab => (
               <button
-                type="button"
-                onClick={toggleListening}
-                disabled={loading}
-                title={listening ? 'Stop recording' : 'Speak recipe'}
-                className={`absolute right-2.5 top-2.5 p-1 rounded-md transition-colors ${
-                  listening
-                    ? 'text-red-500 hover:text-red-600 animate-pulse'
-                    : 'text-muted-foreground hover:text-foreground'
+                key={tab.id}
+                className={`flex-1 flex items-center justify-center gap-1.5 text-sm py-1.5 rounded-md transition-colors ${
+                  mode === tab.id ? 'bg-background shadow-sm font-medium' : 'text-muted-foreground hover:text-foreground'
                 }`}
+                onClick={() => switchMode(tab.id)}
               >
-                {listening ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+                {tab.icon} {tab.label}
               </button>
-            )}
+            ))}
+            <button
+              className="flex-1 flex items-center justify-center gap-1.5 text-sm py-1.5 rounded-md transition-colors text-muted-foreground hover:text-foreground"
+              onClick={() => { reset(); onManual() }}
+            >
+              <Pencil className="w-3.5 h-3.5" /> Manual
+            </button>
           </div>
+
+          {mode === 'describe' ? (
+            <div className="relative">
+              <Textarea
+                placeholder="e.g. Chicken stir fry with 2 chicken breasts, 1 cup soy sauce, 2 tbsp sesame oil, 2 cups broccoli florets, 3 cloves garlic. Serves 4, takes about 20 minutes."
+                value={description}
+                onChange={e => { setDescription(e.target.value); if (parsed) setParsed(null) }}
+                rows={6}
+                className="resize-none pr-10"
+                disabled={loading}
+              />
+              {SpeechRecognitionAPI && (
+                <button
+                  type="button"
+                  onClick={toggleListening}
+                  disabled={loading}
+                  title={listening ? 'Stop recording' : 'Speak recipe'}
+                  className={`absolute right-2.5 top-2.5 p-1 rounded-md transition-colors ${
+                    listening ? 'text-red-500 hover:text-red-600 animate-pulse' : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  {listening ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+                </button>
+              )}
+            </div>
+          ) : (
+            <Input
+              placeholder="https://..."
+              value={url}
+              onChange={e => { setUrl(e.target.value); if (parsed) setParsed(null) }}
+              disabled={loading}
+              autoFocus
+            />
+          )}
 
           {listening && (
             <p className="text-xs text-muted-foreground flex items-center gap-1.5">
               <span className="inline-block w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
-              Listening… speak naturally, then hit Parse Recipe
+              Listening… speak naturally, then hit Parse
             </p>
           )}
 
@@ -170,9 +211,7 @@ export function RecipeChat({ open, onClose, onParsed }: Props) {
                 {parsed.ingredients.length} ingredient{parsed.ingredients.length !== 1 ? 's' : ''} · {parsed.servings} serving{parsed.servings !== 1 ? 's' : ''}
                 {parsed.prepTimeMinutes ? ` · ${parsed.prepTimeMinutes} min` : ''}
               </p>
-              {parsed.tags.length > 0 && (
-                <p className="text-muted-foreground">{parsed.tags.join(', ')}</p>
-              )}
+              {parsed.tags.length > 0 && <p className="text-muted-foreground">{parsed.tags.join(', ')}</p>}
             </div>
           )}
         </div>
@@ -180,7 +219,10 @@ export function RecipeChat({ open, onClose, onParsed }: Props) {
         <DialogFooter>
           <Button variant="outline" onClick={handleClose} disabled={loading}>Cancel</Button>
           {!parsed ? (
-            <Button onClick={handleParse} disabled={loading || !description.trim()}>
+            <Button
+              onClick={handleParse}
+              disabled={loading || (mode === 'describe' ? !description.trim() : !url.trim())}
+            >
               {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
               Parse Recipe
             </Button>
