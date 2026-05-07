@@ -52,7 +52,7 @@ export function MealDialog({ open, meal, existingTags, onSave, onDelete, onClose
   )
 
   useEffect(() => {
-    setForm(meal ? { ...meal, ingredients: meal.ingredients.map(i => ({ ...i })) } : emptyMeal())
+    setForm(meal ? { ...meal, ingredients: meal.ingredients.map(i => ({ id: crypto.randomUUID(), ...i })) } : emptyMeal())
     setTagInput('')
     setSuggestions({})
     setActiveSuggestion(null)
