@@ -70,7 +70,7 @@ export function GroceryPage() {
 
   if (plan.length === 0) {
     return (
-      <div className="p-6 max-w-2xl mx-auto text-center py-16 text-muted-foreground">
+      <div className="p-6 max-w-3xl mx-auto text-center py-16 text-muted-foreground">
         <ShoppingCart className="w-10 h-10 mx-auto mb-3 text-primary/40" />
         <p>Plan your meals for the week first, then come here to generate a grocery list.</p>
       </div>
